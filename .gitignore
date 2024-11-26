@@ -1,0 +1,7 @@
+.vscode/alive/fasl/tmp.lisp
+.vscode/alive/fasl/tmp.fasl
+.vscode/alive/repl-history.json
+.vscode/settings.json
+src.fasl
+.vscode/**
+.vscode

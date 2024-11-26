@@ -202,7 +202,7 @@ SLOTS is a list of structure field names (e.g., (:id :name :typeof))."
       
     ;; Test 5: Convert structure to hash table and back
     (let ((craft (first spacecrafts)))
-      (format t "~%Test: Converting structure to hash table and back:~%")
+      (format t "~%Test: Converting structure to hash table and to alist:~%")
       (let ((hash (struct-to-hash-table craft '(id name typeof launch-year manufacturer description))))
         (format t "Hash table: ~a~%" (hash-table-to-alist hash))
         (test-alist-to-hash-table)
