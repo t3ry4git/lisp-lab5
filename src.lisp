@@ -6,8 +6,6 @@
   description    ;; Company description
 )
 
-(defvar company-slots '(id name typeof launch-year description))
-
 (defstruct spacecraft
   id             ;; Unique identifier for the spacecraft
   name           ;; Spacecraft name
@@ -17,7 +15,14 @@
   description    ;; Spacecraft description
 )
 
-(defvar spacecraft-slots '(id name typeof launch-year manufacturer description))
+
+(defun get-structure-slots (struct-name)
+  (mapcar #'sb-mop:slot-definition-name
+          (sb-mop:class-direct-slots (find-class struct-name))))
+
+(defvar company-slots (get-structure-slots 'company))
+(defvar spacecraft-slots (get-structure-slots 'spacecraft))
+
 
 (defun split-string (string separator)
   "Splits a STRING into substrings using SEPARATOR."
@@ -54,29 +59,27 @@
               rows))))
 
 (defun select (filepath key &rest filters)
-  "Filters data from FILEPATH and creates structures based on KEY (:company or :spacecraft)."
   (let* ((struct-map '((:company . make-company)
-                       (:spacecraft . make-spacecraft))) ;; Map keys to constructors
-         (constructor (cdr (assoc key struct-map))))   ;; Get constructor by key
+                       (:spacecraft . make-spacecraft))) 
+         (constructor (cdr (assoc key struct-map))))     
     (unless constructor
-      (error "Unknown key: ~A. Expected :company or :spacecraft" key)) ;; Handle unknown key
-    ;; Read data and create structures
-    (let ((data (read-csv-as-structures filepath constructor)))
-      ;; Filter data
-      (if filters
-          (let* ((filter-pairs (loop for (filter-key value) on filters by #'cddr
-                                     collect (cons filter-key value))))
-            (remove-if-not
-             (lambda (item)
-               (every (lambda (filter)
-                        (let* ((field (slot-value item (intern (symbol-name (car filter)))))
-                               (filter-value (cdr filter)))
-                          ;; Convert both values to strings before comparison
-                          (string= (write-to-string field)
-                                   (write-to-string filter-value))))
-                      filter-pairs))
-             data))
-          data)))) ;; If no filters, return all data
+      (error "Unknown key: ~A. Expected :company or :spacecraft" key)) 
+    (lambda ()
+      (let ((data (read-csv-as-structures filepath constructor)))
+        (if filters
+            (let* ((filter-pairs (loop for (filter-key value) on filters by #'cddr
+                                       collect (cons filter-key value))))
+              (remove-if-not
+               (lambda (item)
+                 (every (lambda (filter)
+                          (let* ((field (slot-value item (intern (symbol-name (car filter)))))
+                                 (filter-value (cdr filter)))
+                            (string= (write-to-string field)
+                                     (write-to-string filter-value))))
+                        filter-pairs))
+               data))
+            data))))) 
+
 
 (defun write-structure-to-csv (filepath struct slots)
   "Writes STRUCT to a CSV file at FILEPATH. SLOTS is a list of structure fields."
@@ -185,25 +188,25 @@ SLOTS is a list of structure field names (e.g., (:id :name :typeof))."
         (companies (select "companies.csv" :company)))     ;; Read companies
     ;; Test 1: Print all spacecrafts
     (format t "All spacecrafts:~%")
-    (print-table spacecrafts spacecraft-slots)
+    (print-table (funcall spacecrafts) spacecraft-slots)
     
     ;; Test 2: Filter spacecrafts by manufacturer
     (format t "~%Spacecrafts by NASA:~%")
-    (print-table (select "spacecraft.csv" :spacecraft :manufacturer "NASA") spacecraft-slots)
+    (print-table (funcall (select "spacecraft.csv" :spacecraft :manufacturer "NASA")) spacecraft-slots)
       
     
     ;; Test 3: Print all companies
     (format t "~%All companies:~%")
-    (print-table companies company-slots)
+    (print-table (funcall companies) company-slots)
     
     ;; Test 4: Filter companies by type
     (format t "~%Manufacturers:~%")
-    (print-table (select "companies.csv" :company :typeof "Manufacturer") company-slots)
+    (print-table (funcall (select "companies.csv" :company :typeof "Manufacturer")) company-slots)
       
     ;; Test 5: Convert structure to hash table and back
-    (let ((craft (first spacecrafts)))
+    (let ((craft (first (funcall spacecrafts))))
       (format t "~%Test: Converting structure to hash table and to alist:~%")
-      (let ((hash (struct-to-hash-table craft '(id name typeof launch-year manufacturer description))))
+      (let ((hash (struct-to-hash-table craft spacecraft-slots)))
         (format t "Hash table: ~a~%" (hash-table-to-alist hash))
         (test-alist-to-hash-table)
         (print nil)))))
